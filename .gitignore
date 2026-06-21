@@ -14,6 +14,7 @@ build/
 data/raw/
 data/processed/plastic/blog_cafe_combined.csv
 data/processed/plastic/clinic_with_placeid.csv
+data/processed/plastic/naver_place_reviews_sample.csv
 
 # 모델 캐시
 .cache/

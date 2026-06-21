@@ -7,7 +7,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY manidata/ ./manidata/
 COPY maniagent/ ./maniagent/
-COPY data/processed/ ./data/processed/
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
