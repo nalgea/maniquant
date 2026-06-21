@@ -1,0 +1,29 @@
+# 환경변수 (절대 커밋 금지)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# 데이터 (용량 큰 파일)
+data/raw/
+data/processed/plastic/blog_cafe_combined.csv
+data/processed/plastic/clinic_with_placeid.csv
+
+# 모델 캐시
+.cache/
+*.bin
+*.safetensors
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
