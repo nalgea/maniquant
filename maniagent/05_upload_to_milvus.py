@@ -48,8 +48,18 @@ except ImportError as e:
     sys.exit(1)
 
 _HERE = Path(__file__).parent
-sys.path.insert(0, str(_HERE.parent / "manidata"))
-from anti_aging_config import EMBEDDING_CONFIG, MILVUS_COLLECTION_SCHEMA  # noqa: E402
+
+import importlib.util as _ilu
+
+def _load_config(name: str):
+    spec = _ilu.spec_from_file_location(name, _HERE.parent / "manidata" / f"{name}.py")
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+_aa = _load_config("02_anti_aging_config")
+EMBEDDING_CONFIG = _aa.EMBEDDING_CONFIG
+MILVUS_COLLECTION_SCHEMA = _aa.MILVUS_COLLECTION_SCHEMA
 
 load_dotenv(_HERE.parent / ".env")
 
@@ -102,15 +112,16 @@ class MilvusUploader:
 
     def _connect(self) -> None:
         token = os.getenv("MILVUS_TOKEN", "")
-        kwargs: dict[str, Any] = {
-            "alias": "default",
-            "host":  self.host,
-            "port":  self.port,
-        }
-        if token:
-            kwargs["token"] = token
-        connections.connect(**kwargs)
-        logger.info(f"Milvus 연결: {self.host}:{self.port}")
+        host  = self.host
+        if host.startswith("http"):
+            connections.connect(alias="default", uri=host, token=token)
+            logger.info(f"Milvus(Zilliz) 연결: {host}")
+        else:
+            kwargs: dict[str, Any] = {"alias": "default", "host": host, "port": self.port}
+            if token:
+                kwargs["token"] = token
+            connections.connect(**kwargs)
+            logger.info(f"Milvus 연결: {host}:{self.port}")
 
     # ── 컬렉션 스키마 구성 ───────────────────────────────────────────────────
 
@@ -277,12 +288,16 @@ class MilvusUploader:
 
             rows = [self._prepare_row(r) for r in batch_records]
 
-            # 필드별 리스트로 변환 (Milvus insert 형식)
-            data: dict[str, list] = {}
-            if rows:
-                for key in rows[0]:
-                    data[key] = [r[key] for r in rows]
-            data["embedding"] = batch_vecs
+            # 스키마 필드 순서대로 리스트 구성 (Milvus column-based insert)
+            schema_fields = [f["name"] for f in MILVUS_COLLECTION_SCHEMA["scalar_fields"]]
+            data: list[list] = []
+            for key in schema_fields:
+                col = [r.get(key, "") for r in rows]
+                # 정수 필드 타입 보장
+                if key in ("page_number", "chunk_index", "year", "token_count"):
+                    col = [int(v) if v else 0 for v in col]
+                data.append(col)
+            data.append(batch_vecs)  # embedding 마지막
 
             try:
                 result = self._collection.insert(data)

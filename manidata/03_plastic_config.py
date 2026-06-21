@@ -122,7 +122,7 @@ PLASTIC_CHUNKING_CONFIG: dict[str, Any] = {
 
 MILVUS_COLLECTION_SCHEMA: dict[str, Any] = {
     "collection_name": "manidata_plastic_gangnam",
-    "vector_dim":       768,
+    "vector_dim":       1024,
     "index_type":       "IVF_FLAT",
     "metric_type":      "IP",
     "index_params":     {"nlist": 1024},
@@ -161,7 +161,7 @@ MILVUS_COLLECTION_SCHEMA: dict[str, Any] = {
 
 EMBEDDING_CONFIG: dict[str, Any] = {
     "model_name": "BAAI/bge-m3",
-    "dimensions": 768,
+    "dimensions": 1024,
     "batch_size": 32,
     "normalize":  True,
     "device":     "cpu",

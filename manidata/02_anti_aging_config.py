@@ -194,7 +194,7 @@ CHUNKING_CONFIG: dict[str, Any] = {
 
 MILVUS_COLLECTION_SCHEMA: dict[str, Any] = {
     "collection_name": "manidata_anti_aging",
-    "vector_dim":       768,              # BAAI/bge-m3
+    "vector_dim":       1024,             # BAAI/bge-m3
     "index_type":       "IVF_FLAT",
     "metric_type":      "IP",            # Inner Product (bge-m3 권장)
     "index_params":     {"nlist": 1024},
@@ -225,7 +225,7 @@ MILVUS_COLLECTION_SCHEMA: dict[str, Any] = {
 
 EMBEDDING_CONFIG: dict[str, Any] = {
     "model_name":  "BAAI/bge-m3",
-    "dimensions":  768,
+    "dimensions":  1024,
     "batch_size":  32,
     "normalize":   True,             # IP 메트릭 사용 시 정규화 필수
     "device":      "cpu",            # "cuda" 로 변경 시 GPU 가속
