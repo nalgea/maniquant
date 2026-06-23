@@ -235,7 +235,7 @@ def main() -> None:
 
     # 서버 연결 가능 여부 먼저 확인
     try:
-        requests.get(f"{base}/health", timeout=10)
+        requests.get(f"{base}/health", timeout=args.timeout)
     except requests.exceptions.ConnectionError:
         print(f"\n{RED}[ERROR]{RESET} 서버에 연결할 수 없습니다: {base}")
         print("  → 서버가 실행 중인지 확인하세요.")

@@ -300,19 +300,36 @@ class ManiAgentRAG:
         self.top_k            = top_k
         self.score_threshold  = score_threshold
 
-        # 임베딩 모델
-        logger.info(f"임베딩 모델 로딩: {self._embed_cfg['model_name']} [도메인={domain}]")
+        # 임베딩 모델 (EMBED_MODEL_NAME 환경변수로 오버라이드 가능)
+        model_name = os.getenv("EMBED_MODEL_NAME", self._embed_cfg["model_name"])
+        cache_dir  = os.getenv("SENTENCE_TRANSFORMERS_HOME", None)
+        logger.info(f"임베딩 모델 로딩: {model_name} [도메인={domain}]")
         self._embed_model = SentenceTransformer(
-            self._embed_cfg["model_name"],
+            model_name,
             device=self._embed_cfg.get("device", "cpu"),
+            cache_folder=cache_dir,
         )
         logger.info("임베딩 모델 로드 완료")
 
-        # Milvus 연결
-        connections.connect(alias="default", host=self.host, port=self.port)
+        # Milvus / Zilliz Cloud 연결
+        token = os.getenv("MILVUS_TOKEN", "")
+        if token:
+            # Zilliz Cloud (serverless): URI + Token 인증
+            uri = f"https://{self.host}"
+            logger.info(f"Zilliz Cloud 연결: {uri}")
+            connections.connect(
+                alias="default",
+                uri=uri,
+                token=token,
+                secure=True,
+            )
+        else:
+            # 로컬 Milvus: host + port
+            logger.info(f"Milvus 로컬 연결: {self.host}:{self.port}")
+            connections.connect(alias="default", host=self.host, port=self.port)
         self._collection = Collection(self.collection_name)
         self._collection.load()
-        logger.info(f"Milvus 연결 완료: {self.host}:{self.port} / {self.collection_name}")
+        logger.info(f"Milvus 컬렉션 로드 완료: {self.collection_name}")
 
         # LLM 라우터
         self._llm = LLMRouter(llm_router_config=self._cfg["llm_router"])
