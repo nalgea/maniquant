@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator, Literal, Optional
@@ -36,13 +37,21 @@ try:
     import uvicorn
     from fastapi import FastAPI, HTTPException, Depends, Request
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import JSONResponse, StreamingResponse
     from pydantic import BaseModel, Field
     from dotenv import load_dotenv
 except ImportError as e:
     print(f"[ERROR] 필수 패키지 없음: {e}")
     print("       pip install fastapi uvicorn[standard] pydantic python-dotenv")
     sys.exit(1)
+
+# ─── 인메모리 메트릭 ──────────────────────────────────────────────────────────
+_metrics: dict = {
+    "start_time":     time.time(),
+    "total_requests": 0,
+    "total_errors":   0,
+    "endpoints":      defaultdict(lambda: {"count": 0, "errors": 0, "total_ms": 0.0}),
+}
 
 import importlib.util as _ilu
 
@@ -122,6 +131,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 요청 로깅 + 메트릭 미들웨어
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """모든 HTTP 요청의 응답시간·상태코드를 기록합니다."""
+    t0 = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    path = request.url.path
+    status = response.status_code
+    is_error = status >= 400
+
+    _metrics["total_requests"] += 1
+    if is_error:
+        _metrics["total_errors"] += 1
+
+    ep = _metrics["endpoints"][path]
+    ep["count"]    += 1
+    ep["total_ms"] += elapsed_ms
+    if is_error:
+        ep["errors"] += 1
+
+    logger.info(
+        f"{request.method} {path} → {status}  {elapsed_ms:.1f}ms"
+    )
+    return response
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -349,6 +389,32 @@ async def collection_stats(domain: DomainType = "anti_aging") -> dict:
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/metrics", tags=["System"])
+async def get_metrics() -> dict:
+    """서버 운영 메트릭을 반환합니다 (요청 수·오류율·엔드포인트별 평균 응답시간)."""
+    uptime_s = time.time() - _metrics["start_time"]
+    total    = _metrics["total_requests"]
+    errors   = _metrics["total_errors"]
+
+    endpoints_summary = {}
+    for path, ep in _metrics["endpoints"].items():
+        cnt = ep["count"]
+        endpoints_summary[path] = {
+            "requests":   cnt,
+            "errors":     ep["errors"],
+            "avg_ms":     round(ep["total_ms"] / cnt, 2) if cnt else 0.0,
+            "error_rate": round(ep["errors"] / cnt * 100, 1) if cnt else 0.0,
+        }
+
+    return {
+        "uptime_seconds":  round(uptime_s, 1),
+        "total_requests":  total,
+        "total_errors":    errors,
+        "error_rate_pct":  round(errors / total * 100, 1) if total else 0.0,
+        "endpoints":       endpoints_summary,
+    }
 
 
 # ════════════════════════════════════════════════════════════════════════════
