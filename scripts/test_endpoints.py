@@ -27,6 +27,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# ── Windows cp949 터미널 인코딩 문제 해결 ────────────────────────────────────
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 try:
     import requests
 except ImportError:
@@ -41,10 +47,10 @@ CYAN   = "\033[96m"
 BOLD   = "\033[1m"
 RESET  = "\033[0m"
 
-def ok(msg: str)   -> str: return f"{GREEN}✅ PASS{RESET}  {msg}"
-def fail(msg: str) -> str: return f"{RED}❌ FAIL{RESET}  {msg}"
-def warn(msg: str) -> str: return f"{YELLOW}⚠️  WARN{RESET}  {msg}"
-def info(msg: str) -> str: return f"{CYAN}ℹ️  INFO{RESET}  {msg}"
+def ok(msg: str)   -> str: return f"{GREEN}[PASS]{RESET}  {msg}"
+def fail(msg: str) -> str: return f"{RED}[FAIL]{RESET}  {msg}"
+def warn(msg: str) -> str: return f"{YELLOW}[WARN]{RESET}  {msg}"
+def info(msg: str) -> str: return f"{CYAN}[INFO]{RESET}  {msg}"
 
 
 # ── 테스트 결과 수집 ──────────────────────────────────────────────────────────

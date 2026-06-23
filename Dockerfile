@@ -15,20 +15,28 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY manidata/ ./manidata/
 COPY maniagent/ ./maniagent/
 
-# ── bge-m3 모델 빌드 시 미리 다운로드 (시작 시간 단축) ──────────────────────
-# Railway 배포 시 콜드 스타트 타임아웃 방지
+# ── 임베딩 모델 빌드 시 미리 다운로드 ─────────────────────────────────────────
+# paraphrase-multilingual-mpnet-base-v2:
+#   - 크기: ~280MB (Railway 무료 플랜 호환)
+#   - 차원: 768d (Zilliz 스키마와 동일)
+#   - 지원 언어: 한국어, 중국어, 일본어, 영어 포함 50+ 언어
+ARG EMBED_MODEL=paraphrase-multilingual-mpnet-base-v2
+ENV EMBED_MODEL_NAME=${EMBED_MODEL}
+ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/models
+ENV HF_HOME=/app/.cache/huggingface
+
 RUN python -c "\
+import os; \
 from sentence_transformers import SentenceTransformer; \
-print('bge-m3 모델 다운로드 중...'); \
-m = SentenceTransformer('BAAI/bge-m3', cache_folder='/app/.cache/models'); \
-print('완료:', m.get_sentence_embedding_dimension(), 'dim')"
+model_name = os.getenv('EMBED_MODEL_NAME', 'paraphrase-multilingual-mpnet-base-v2'); \
+print(f'모델 다운로드: {model_name}'); \
+m = SentenceTransformer(model_name, cache_folder='/app/.cache/models'); \
+dim = m.get_sentence_embedding_dimension(); \
+print(f'완료 — 차원: {dim}d')"
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 ENV HF_HUB_DISABLE_SYMLINKS_WARNING=1
-# 캐시 경로 설정 (다운로드된 모델 재사용)
-ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/models
-ENV HF_HOME=/app/.cache/huggingface
 
 EXPOSE 8000
 

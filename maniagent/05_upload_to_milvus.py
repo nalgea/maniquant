@@ -96,11 +96,15 @@ class MilvusUploader:
         self.port            = port or os.getenv("MILVUS_PORT", "19530")
         self.recreate        = recreate
 
-        # bge-m3 모델 로드
-        logger.info(f"임베딩 모델 로딩: {EMBEDDING_CONFIG['model_name']}")
+        # 임베딩 모델 (EMBED_MODEL_NAME 환경변수로 오버라이드 가능)
+        # 기본값: paraphrase-multilingual-mpnet-base-v2 (280MB, 768d, 다국어)
+        model_name = os.getenv("EMBED_MODEL_NAME", "paraphrase-multilingual-mpnet-base-v2")
+        cache_dir  = os.getenv("SENTENCE_TRANSFORMERS_HOME", None)
+        logger.info(f"임베딩 모델 로딩: {model_name}")
         self._model = SentenceTransformer(
-            EMBEDDING_CONFIG["model_name"],
+            model_name,
             device=EMBEDDING_CONFIG.get("device", "cpu"),
+            cache_folder=cache_dir,
         )
         logger.info("임베딩 모델 로드 완료")
 
